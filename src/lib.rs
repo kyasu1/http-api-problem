@@ -84,6 +84,9 @@ mod api_error;
 #[cfg(feature = "with-api-error")]
 pub use api_error::*;
 
+#[cfg(feature = "with-rocket")]
+use rocket;
+
 pub use http::StatusCode;
 
 /// The recommended media type when serialized to JSON
@@ -451,6 +454,28 @@ impl HttpApiProblem {
             )
             .body(json)
     }
+
+    /// Creates a `rocket` response.
+    ///
+    /// If status is `None` `500 - Internal Server Error` is the
+    /// default.
+    #[cfg(feature = "with-rocket")]
+    pub fn to_rocket_response(&self) -> rocket::Response<'static> {
+        use rocket::http::ContentType;
+        use rocket::http::Status;
+        use rocket::Response;
+        use std::io::Cursor;
+
+        let content_type: ContentType = PROBLEM_JSON_MEDIA_TYPE.parse().unwrap();
+        let json = self.json_bytes();
+        let response = Response::build()
+            .status(Status::raw(self.status_code_or_internal_server_error()))
+            .sized_body(Cursor::new(json))
+            .header(content_type)
+            .finalize();
+
+        response
+    }    
 }
 
 impl fmt::Display for HttpApiProblem {
@@ -572,6 +597,34 @@ mod custom_http_status_serialization {
         }
 
         Ok(None)
+    }
+}
+
+/// Creates an `rocket::Response` from something that can become an
+/// `HttpApiProblem`.
+///
+/// If status is `None` `500 - Internal Server Error` is the
+/// default.
+#[cfg(feature = "with-rocket")]
+pub fn into_rocket_response<T: Into<HttpApiProblem>>(what: T) -> ::rocket::Response<'static> {
+    let problem: HttpApiProblem = what.into();
+    problem.to_rocket_response()
+}
+
+#[cfg(feature = "with-rocket")]
+impl From<HttpApiProblem> for ::rocket::Response<'static> {
+    fn from(problem: HttpApiProblem) -> ::rocket::Response<'static> {
+        problem.to_rocket_response()
+    }
+}
+
+#[cfg(feature = "with-rocket")]
+impl<'r> ::rocket::response::Responder<'r> for HttpApiProblem {
+    fn respond_to(
+        self,
+        _request: &::rocket::Request,
+    ) -> Result<::rocket::Response<'r>, ::rocket::http::Status> {
+        Ok(self.into())
     }
 }
 
