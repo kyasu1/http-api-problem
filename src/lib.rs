@@ -470,7 +470,7 @@ impl HttpApiProblem {
         let json = self.json_bytes();
         let response = Response::build()
             .status(Status::raw(self.status_code_or_internal_server_error()))
-            .sized_body(Cursor::new(json))
+            .sized_body(json.len(), Cursor::new(json))
             .header(content_type)
             .finalize();
 
