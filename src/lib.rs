@@ -619,11 +619,11 @@ impl From<HttpApiProblem> for ::rocket::Response<'static> {
 }
 
 #[cfg(feature = "with-rocket")]
-impl<'r> ::rocket::response::Responder<'r> for HttpApiProblem {
+impl<'r> ::rocket::response::Responder<'r, 'static> for HttpApiProblem {
     fn respond_to(
         self,
-        _request: &::rocket::Request,
-    ) -> Result<::rocket::Response<'r>, ::rocket::http::Status> {
+        _: &'r ::rocket::Request<'_>,
+    ) -> Result<::rocket::Response<'static>, ::rocket::http::Status> {
         Ok(self.into())
     }
 }
